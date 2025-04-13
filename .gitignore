@@ -1,0 +1,12 @@
+/.venv
+/api_gateway
+/create_bd.py
+/lecture_4
+/lecture_5
+/ml_service
+/mydatabase.db
+/test.db
+/test.ipynb
+/test.py
+/todo.md
+/__pycache__
