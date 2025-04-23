@@ -1,27 +1,28 @@
 import os
 from celery import Celery
 from dotenv import load_dotenv
-
+from ..configs.config import Config
+import numpy as np
 import time
 
 # Инициализация Celery с Redis в качестве брокера
-app = Celery(
+app_celery = Celery(
     'tasks',
-    broker = os.getenv('BROKER'),
-    backend = os.getenv('BACKEND')
+    broker = Config.BROKER,
+    backend = Config.BACKEND
 )
 
-@app.task
+@app_celery.task
 def lr_predict(data):
+    print(data)
+    return np.random.random()
 
-    return 0
-
-@app.task
+@app_celery.task
 def rf_predict(data):
-    
-    return 0
+    print(data)
+    return np.random.random()
 
-@app.task
+@app_celery.task
 def catboost_predict(data):
-    
-    return 0
+    print(data)
+    return np.random.random()

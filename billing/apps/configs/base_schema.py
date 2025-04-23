@@ -11,6 +11,7 @@ class UserCreate(BaseModel):
 
 class UserJWT(BaseModel):
     username: str
+    password: str
 
 
 class DataForPredict(BaseModel):

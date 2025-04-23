@@ -4,3 +4,26 @@ services:
     container_name: redis_container
     ports:
       - '6379:6379'
+  
+  celery_worker:
+    build: billing
+    command: celery -A apps.broker.tasks worker --loglevel=info
+    volumes:
+      - .:/apps
+    depends_on:
+      - redis
+
+  billing_service:
+    build: billing
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./db:/app/db # Монтируем локальную папку data в папку /app/data внутри контейнера
+    environment:
+      - DATABASE_URL=sqlite:///db/mydatabase.db  # Путь внутри контейнера
+    depends_on:
+      - redis
+      - celery_worker
+  
+networks:
+  backend:

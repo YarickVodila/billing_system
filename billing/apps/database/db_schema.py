@@ -1,5 +1,5 @@
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Column, Integer, String, Float, DateTime
+from sqlalchemy import Column, Integer, String, Float, DateTime, Boolean
 
 Base = declarative_base()
 
@@ -22,16 +22,20 @@ class UserTransaction(Base):
     type = Column(String) # Тип транзакции 'пополнение' / 'покупка' прогноза
     balance = Column(Float) # Баланс после транзакции
     
+    
 class TaskStatus(Base):
     __tablename__ = 'TaskStatus'
     id = Column(Integer, primary_key=True, autoincrement = True)
     user_id = Column(Integer)
-    id_task = Column(String)
+    task_id = Column(String)
+
 
 class UserPrediction(Base):
     __tablename__ = 'UserPrediction'
     id = Column(Integer, primary_key=True, autoincrement = True)
     user_id = Column(Integer)
+    task_id = Column(String)
+    status = Column(Boolean)
     timestamp = Column(DateTime)
     model_id = Column(Integer)
 
