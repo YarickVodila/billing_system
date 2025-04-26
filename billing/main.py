@@ -1,9 +1,9 @@
 from apps.configs.config import Config
-from apps.configs.base_schema import UserCreate, UserJWT, DataForPredict
+from apps.configs.base_schema import UserCreate, UserJWT, DataForPredict, UserLogin
 from apps.database.db_helper import session
 from apps.database.db_schema import User, UserTransaction, UserPrediction, Models, TaskStatus
 from apps.broker.tasks import lr_predict, rf_predict, catboost_predict, app_celery
-from create_db import create_database
+# from create_db import create_database
 from celery.result import AsyncResult
 
 import os
@@ -29,6 +29,33 @@ from contextlib import asynccontextmanager
 bcrypt.__about__ = bcrypt
 
 
+async def monitor_task():
+    """Фоновая задача для периодического мониторинга таблицы."""
+    while True:
+        try:
+            all_tasks = session.query(TaskStatus).all()
+
+            for task in all_tasks:
+                result_task = AsyncResult(task.task_id, app=app_celery)
+
+                if result_task.ready(): # Если таска выполнена
+                    db_prediction = session.query(UserPrediction).filter( # Обновляем прогноз пользователя
+                        UserPrediction.user_id == task.user_id,
+                        UserPrediction.task_id == task.task_id,
+                    ).first()
+
+                    db_prediction.result = result_task.get() 
+                    db_prediction.status = True 
+                    session.delete(task) # Удаляем таску из таблицы
+            
+            session.commit()
+            
+        except Exception as e:
+            print(f"Error monitoring table: {e}")
+        
+        await asyncio.sleep(10)  # Ждем 10 секунд
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Контекстный менеджер для управления жизненным циклом приложения"""
@@ -50,14 +77,16 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan)
 
 
+
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Защита маршрутов с использованием HTTPBearer
 bearer = HTTPBearer()
 
 
-def create_token(username: str, password:str):
-    user = UserJWT(username = username, password = password)
+def create_token(username: str):
+    user = UserJWT(username = username)
     token_payload = user.model_dump(exclude_unset=True)
     
     # Время истечения токена
@@ -68,23 +97,26 @@ def create_token(username: str, password:str):
 
 
 @app.post("/login")
-def login(user: UserJWT):
+def login(user: UserLogin):
     
+    username = user.username
+    password = user.password
+
     db_user = session.query(User).filter(
-        User.username == user.username,
-        User.password == user.password
+        User.username == username,
+        # User.password == password
     ).first()
 
     if db_user == None:
         raise HTTPException(status_code=401, detail="Пользователя нет. Зарегистрируйся")
     
-    # if not pwd_context.verify(user.password, db_user.password):
-    #     raise HTTPException(status_code=401, detail="Пароль неверный")
+    if not pwd_context.verify(password, db_user.password):
+        raise HTTPException(status_code=401, detail="Пароль неверный")
     
     db_user.authtime = datetime.datetime.now()
     session.commit()
 
-    token = create_token(user.username, user.password)
+    token = create_token(username)
     return {"access_token": token}
 
 
@@ -96,9 +128,6 @@ def get_current_user(token: str = Depends(bearer)):
         # Проверяем JWT токен
         payload = jwt.decode(token.credentials, Config.SECRET_KEY)
         username = payload.get("username")
-        # password = payload.get("password")
-
-        # print(f"username: {username}")
 
         # Получаем пользователя из БД
         db_user = session.query(User).filter(User.username == username).first()
@@ -127,7 +156,7 @@ def get_current_user(token: str = Depends(bearer)):
 
 
 @app.post("/predict")
-def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: str = Depends(get_current_user)):
+def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: dict = Depends(get_current_user)):
     
     db_user = session.query(User).filter(User.username == user["username"]).first()
     
@@ -176,9 +205,9 @@ def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: 
 
     session.add(task_status)
 
-    # ============================ Получаем прогноз =======================================
+    # ============================ Создаём прогноз =======================================
 
-    user_predict =  UserPrediction(
+    user_predict = UserPrediction(
         user_id = db_user.id,
         timestamp = time_now,
         model_id = model_object.id,
@@ -205,10 +234,71 @@ def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: 
     session.commit()
 
 
-    return {"message": f"Task {id_task.id}: in processing"}
+    return {"message": f"Task in processing", "task_id": id_task.id}
+
+
+
+@app.post("/balance_replenish")
+def balance_replenish(amount:int, user: dict = Depends(get_current_user)):
+    
+    db_user = session.query(User).filter(User.username == user["username"]).first()
+    db_user.balance = db_user.balance + amount
+    
+    time_now = datetime.datetime.now()
+
+    user_transaction = UserTransaction(
+        user_id = db_user.id,
+        timestamp = time_now,
+        amount = amount, # Объём транзакции транзакции
+        type = "пополнение", # Тип транзакции 'пополнение' / 'покупка' прогноза
+        balance = db_user.balance, # Баланс после транзакции
+    )
+
+    session.add(user_transaction)
+    session.commit()
+
+    return {"message": f"Баланс пополнен на {amount} бумажек с мёртвыми президентами"}
+
+
+@app.get("/get_statistic")
+def get_statistic(user: dict = Depends(get_current_user)):
+    
+    user = session.query(User).filter(User.username == user["username"]).first()
+
+    user_statistic = session.query(UserPrediction).filter(
+        UserPrediction.user_id == user.id,
+        UserPrediction.status == True
+    ).all()
+
+    data = [
+        {column.name: getattr(item, column.name) for column in item.__table__.columns if column.name not in ["id", "status", "user_id", "task_id"]} for item in user_statistic
+    ]
+
+    return {"data": data}
+
+@app.get("/get_history_transaction")
+def get_history_transaction(type_trans: Literal["пополнение", "покупка"], user: dict = Depends(get_current_user)):
+    
+    user = session.query(User).filter(User.username == user["username"]).first()
+
+    user_statistic = session.query(UserTransaction).filter(
+        UserTransaction.user_id == user.id,
+        UserTransaction.type == type_trans
+    ).all()
+
+    data = [
+        {column.name: getattr(item, column.name) for column in item.__table__.columns if column.name not in ["id", "user_id"]} for item in user_statistic
+    ]
+
+    return {"data": data}
+
+@app.get("/user")
+def get_user(user: dict = Depends(get_current_user)):
+    return user
+
+
 
 # =================================================================================================================================
-
 
 
 @app.post("/register")
@@ -224,48 +314,14 @@ async def register_user(user_field: UserCreate):
         username=user_field.username,
         email=user_field.email,
         password=hashed_password,
-        authtime=datetime.datetime.now(),
-        balance=user_field.balance
+        authtime=datetime.datetime.now()
+        # balance=user_field.balance
     )
 
     session.add(db_user)
     session.commit()
 
     return {"message": f"User: `{user_field.username}` created successfully"}
-
-    
-async def monitor_task():
-    """Фоновая задача для периодического мониторинга таблицы."""
-    while True:
-        try:
-            all_tasks = session.query(TaskStatus).all()
-
-            for task in all_tasks:
-                result_task = AsyncResult(task.task_id, app=app_celery)
-
-                if result_task.ready(): # Если таска выполнена
-                    db_prediction = session.query(UserPrediction).filter( # Обновляем прогноз пользователя
-                        UserPrediction.user_id == task.user_id,
-                        UserPrediction.task_id == task.task_id,
-                    ).first()
-
-                    db_prediction.result = result_task.get() 
-                    session.delete(task) # Удаляем таску из таблицы
-            
-            session.commit()
-            
-        except Exception as e:
-            print(f"Error monitoring table: {e}")
-        
-        await asyncio.sleep(10)  # Ждем 10 секунд
-
-
-# @app.on_event("startup")
-# async def startup_event():
-#     """Запускаем фоновую задачу при старте приложения."""
-#     background_tasks = BackgroundTasks()
-#     background_tasks.add_task(monitor_task)
-
 
 
 

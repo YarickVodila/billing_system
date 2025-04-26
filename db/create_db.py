@@ -5,7 +5,7 @@ from sqlalchemy.orm import declarative_base
 
 
 
-engine = create_engine('sqlite:///mydatabase.db')
+engine = create_engine('sqlite:///db/mydatabase.db')
 Session = sessionmaker(bind=engine)
 session = Session()
 Base = declarative_base()
@@ -70,9 +70,9 @@ class Models(Base):
 Base.metadata.create_all(engine)
 
 
-user = User(username='admin', password='admin', email = "admin@example.com")
-session.add(user)
-session.commit()
+# user = User(username='admin', password='admin', email = "admin@example.com")
+# session.add(user)
+# session.commit()
 
 
 model = Models(name='Logistic Regression', cost = 10, description = "Логистическая регрессия — это статистическая модель, используемая для задач бинарной классификации (реже многоклассовой). В отличие от линейной регрессии, которая предсказывает непрерывные значения, логистическая регрессия предсказывает вероятность принадлежности объекта к определённому классу с помощью логистической функции (сигмоиды)")

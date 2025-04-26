@@ -1,15 +1,14 @@
 import os
 from celery import Celery
 from dotenv import load_dotenv
-from ..configs.config import Config
 import numpy as np
 import time
 
 # Инициализация Celery с Redis в качестве брокера
 app_celery = Celery(
     'tasks',
-    broker = Config.BROKER,
-    backend = Config.BACKEND
+    broker = os.getenv("BROKER", "redis://redis:6379/0"),
+    backend = os.getenv("BACKEND", "redis://redis:6379/1")
 )
 
 @app_celery.task

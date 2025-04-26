@@ -10,8 +10,12 @@ services:
     command: celery -A apps.broker.tasks worker --loglevel=info
     volumes:
       - .:/apps
+    environment:
+      - BROKER=redis://redis:6379/0
+      - BACKEND=redis://redis:6379/1
     depends_on:
       - redis
+
 
   billing_service:
     build: billing
@@ -21,9 +25,23 @@ services:
       - ./db:/app/db # Монтируем локальную папку data в папку /app/data внутри контейнера
     environment:
       - DATABASE_URL=sqlite:///db/mydatabase.db  # Путь внутри контейнера
+      - BROKER=redis://redis:6379/0
+      - BACKEND=redis://redis:6379/1
     depends_on:
       - redis
       - celery_worker
   
+  frontend:
+    build: frontend
+    ports:
+      - "8001:8001"
+    environment:
+      - BACKEND_FASTAPI=http://billing_service:8000
+    depends_on:
+      - redis
+      - celery_worker
+      - billing_service
+
+
 networks:
   backend:

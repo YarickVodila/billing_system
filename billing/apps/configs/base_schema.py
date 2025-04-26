@@ -6,12 +6,13 @@ class UserCreate(BaseModel):
     username: str
     email: str
     password: str
-    balance: float = 0.0
 
+class UserLogin(BaseModel):
+    username: str
+    password: str
 
 class UserJWT(BaseModel):
     username: str
-    password: str
 
 
 class DataForPredict(BaseModel):
