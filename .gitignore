@@ -8,5 +8,4 @@
 *__pycache__
 /test
 .env
-create_db.py
 db/mydatabase.db

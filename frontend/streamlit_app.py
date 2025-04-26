@@ -133,7 +133,7 @@ def main():
                 }
 
                 with col1:
-                    person_age = st.number_input("Количество лет", min_value=0, value=30)
+                    person_age = st.number_input("Возраст", min_value=0, value=30)
                     person_income = st.number_input("Заработная плата в год ($)", min_value=0, value=50000)
                     person_emp_length = st.number_input("Опыт работы (кол-во лет)", min_value=0, value=5)
                     loan_intent = st.selectbox("На что нужен кредит", ['Предпринимательство', 'Медицина', 'Образование', 'Закрытие долгов', 'Личное', 'Ремонт дома'])
