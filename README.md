@@ -29,6 +29,9 @@
     - `Logistic Regression`
     - `Random Forest`
     - `CatBoost`
+
+<img src="img/models.png" alt="Выбор модели" style="width:50%; height:auto;">
+
 2. Пользователь вводит данные: 
     * `person_age`: возраст кандидата.
     * `person_income`: сколько денег кандидат зарабатывает в год.
@@ -42,6 +45,8 @@
     * `cb_person_default_on_file`: показывает, были ли просрочки по кредиту у кандидата.
     * `cb_person_cred_hist_length`: Как долго у кандидата была кредитная история 
 
+<img src="img/data_form.png" alt="Форма для данных" style="width:50%; height:auto;">
+
 3. Система проверяет достаточность средств на балансе
 4. При успешной проверке:
     - Списывается стоимость прогноза
@@ -51,10 +56,16 @@
 
 5. Фоновая задача `monitor_task` периодически проверяет статус выполнения и обновляет результаты
 
+<img src="img/history_predict.png" alt="История прогноза" style="width:50%; height:auto;">
+
 ### 3. Управление балансом
 1. Пользователь может пополнять баланс
 
+<img src="img/replenish_balance.png" alt="Пополнение баланса" style="width:50%; height:auto;">
+
 2. Каждое пополнение фиксируется в транзакциях
+
+<img src="img/trans_history.png" alt="История транзакций" style="width:50%; height:auto;">
 
 3. При использовании моделей баланс автоматически уменьшается
 
