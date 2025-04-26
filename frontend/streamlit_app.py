@@ -143,7 +143,7 @@ def main():
                     loan_amnt = st.number_input("Сумма кредита ($)", min_value=0, value=10000)
                     loan_int_rate = st.number_input("Процентная ставка (%)", min_value=0.0, value=5.0)
                     loan_percent_income = st.number_input("Процент от дохода на погашение кредита", min_value=0.0,  value=0.2)
-                    cb_person_default_on_file = st.selectbox("Были ли задолженности", ["Да", "Нет"])
+                    cb_person_default_on_file = st.selectbox("Были ли просрочки по кредитам", ["Да", "Нет"])
                     cb_person_cred_hist_length = st.number_input("Кредитная история (кол-во лет)", min_value=0, value=3)
                 
                 submitted = st.form_submit_button("Make Prediction")
