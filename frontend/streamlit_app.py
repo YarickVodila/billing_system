@@ -1,4 +1,4 @@
-from streamlit_helper import register_user, login_user, get_current_user, replenish_balance, make_prediction, get_statistics, get_transaction_history
+from streamlit_helper import register_user, login_user, get_current_user, replenish_balance, make_prediction, get_statistics, get_transaction_history, get_model_desc
 import os
 import streamlit as st
 from datetime import datetime
@@ -104,14 +104,14 @@ def main():
             user = st.session_state.current_user
             st.write(f"Ваш баланс в мёртвых президентах: ${user['balance']}")
             
+            success, models_data = get_model_desc()
+
             # Model selection
             model_id = st.radio("Выберите модель", 
-                                options=["1", "2", "3"],
-                                format_func=lambda x: {
-                                    "1": "Linear Regression (Cost: $10)",
-                                    "2": "Random Forest (Cost: $20)",
-                                    "3": "CatBoost (Cost: $30)"
-                                }[x])
+                                options=[str(model["id"]) for model in models_data],
+                                format_func=lambda x: {str(model["id"]): f'{model["name"]} (Coast: ${model["cost"]})'  for model in models_data}[x],
+                                captions = [f'{model["description"]}' for model in models_data]
+            )                   
             
             # Input form
             st.write("### Заполните форму")

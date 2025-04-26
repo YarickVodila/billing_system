@@ -52,6 +52,19 @@ def get_current_user():
             return False, response.json().get("detail", "Failed to get user info")
     except Exception as e:
         return False, f"Error: {str(e)}"
+    
+def get_model_desc():
+    url = f"{BASE_URL}/get_model_desc"
+    # headers = {"Authorization": f"Bearer {st.session_state.access_token}"}
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            return True, response.json()["data"]
+        else:
+            return False, response.json().get("detail", "Failed to get statistics")
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
 
 def replenish_balance(amount):
     url = f"{BASE_URL}/balance_replenish"
