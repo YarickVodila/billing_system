@@ -1,7 +1,7 @@
 class Config:
     # DATABASE_URL = 'sqlite:///../mydatabase.db'
     # DATABASE_URL = 'sqlite:///mydatabase.db'
-    DATABASE_URL = 'sqlite:///db/mydatabase.db'
+    DATABASE_URL = 'db/mydatabase.db'
 
     # BROKER = 'redis://localhost:6379/0'
     # BACKEND = 'redis://localhost:6379/1'

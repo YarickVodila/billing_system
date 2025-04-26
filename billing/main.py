@@ -3,7 +3,8 @@ from apps.configs.base_schema import UserCreate, UserJWT, DataForPredict, UserLo
 from apps.database.db_helper import session
 from apps.database.db_schema import User, UserTransaction, UserPrediction, Models, TaskStatus
 from apps.broker.tasks import lr_predict, rf_predict, catboost_predict, app_celery
-# from create_db import create_database
+from apps.database.create_db import create_database
+
 from celery.result import AsyncResult
 
 import os
@@ -59,9 +60,19 @@ async def monitor_task():
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Контекстный менеджер для управления жизненным циклом приложения"""
+
     # Код до yield выполняется при старте приложения
+
+    
+    # file_path = os.path.join('db', 'mydatabase.db')
+    # print(f"Проверка нахождения базы по пути: {file_path} - {os.path.exists(file_path)}")
+    # # Проверка существования файла
+    # if os.path.exists(file_path):
+    #     print("Создаём базу данных")
+    #     create_database(file_path)
+
+
     monitor = asyncio.create_task(monitor_task())
-    # create_database() # Создание базы данных
 
     yield  # Здесь приложение работает
     
@@ -259,6 +270,16 @@ def balance_replenish(amount:int, user: dict = Depends(get_current_user)):
 
     return {"message": f"Баланс пополнен на {amount} бумажек с мёртвыми президентами"}
 
+@app.get("/get_model_desc")
+def get_model_desc():
+    
+    models = session.query(Models).all()
+
+    data = [
+        {column.name: getattr(item, column.name) for column in item.__table__.columns} for item in models
+    ]
+
+    return {"data": data}
 
 @app.get("/get_statistic")
 def get_statistic(user: dict = Depends(get_current_user)):
