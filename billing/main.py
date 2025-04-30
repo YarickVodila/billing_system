@@ -48,7 +48,20 @@ async def monitor_task():
                     db_prediction.result = result_task.get() 
                     db_prediction.status = True 
                     session.delete(task) # Удаляем таску из таблицы
-            
+
+                    time_now = datetime.datetime.now()
+                    # Обновляем баланс пользователя если Task успешно завершила работу
+                    db_user = session.query(User).filter(User.id == task.user_id).first()
+                    db_transaction = session.query(UserTransaction).filter(
+                        UserTransaction.user_id == task.user_id,
+                        UserTransaction.task_id == task.task_id
+
+                    ).first()
+
+                    db_user.balance = db_user.balance - db_transaction.amount
+                    db_transaction.balance = db_user.balance
+
+
             session.commit()
             
         except Exception as e:
@@ -182,23 +195,11 @@ def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: 
     
     update_balance = db_user.balance - model_object.cost
 
+
     if update_balance < 0:
         raise HTTPException(status_code=422, detail="Недостаточно денег на балансе")
 
-    # Обновляем баланс пользователя
-    db_user.balance = update_balance
-
     time_now = datetime.datetime.now()
-
-    user_transaction = UserTransaction(
-        user_id = db_user.id,
-        timestamp = time_now,
-        amount = model_object.cost, # Объём транзакции транзакции
-        type = "покупка", # Тип транзакции 'пополнение' / 'покупка' прогноза
-        balance = db_user.balance, # Баланс после транзакции
-    )
-
-    session.add(user_transaction)
 
     if model_object.id == 1:
         id_task = lr_predict.delay(data_x)
@@ -215,6 +216,16 @@ def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: 
     )
 
     session.add(task_status)
+
+    user_transaction = UserTransaction(
+        user_id = db_user.id,
+        timestamp = time_now,
+        task_id = id_task.id, # id задачи
+        amount = model_object.cost, # Объём транзакции транзакции
+        type = "покупка", # Тип транзакции 'пополнение' / 'покупка' прогноза
+        balance = update_balance, # Баланс после транзакции
+    )
+    session.add(user_transaction)
 
     # ============================ Создаём прогноз =======================================
 

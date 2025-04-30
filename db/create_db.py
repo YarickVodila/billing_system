@@ -25,6 +25,7 @@ class UserTransaction(Base):
     __tablename__ = 'UserTransaction'
     id = Column(Integer, primary_key=True, autoincrement = True)
     user_id = Column(Integer)
+    task_id = Column(String)
     timestamp = Column(DateTime)
     amount = Column(Float) # Объём транзакции транзакции
     type = Column(String) # Тип транзакции 'пополнение' / 'покупка' прогноза
