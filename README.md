@@ -30,6 +30,7 @@
 
 <details>
   <summary>Нажмите, чтобы развернуть</summary>
+  
 1. Пользователь выбирает одну из модель:
     - `Logistic Regression`
     - `Random Forest`
