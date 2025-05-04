@@ -3,15 +3,18 @@ import time
 from joblib import dump, load
 
 from celery import Celery
-from dotenv import load_dotenv
 import numpy as np
 import pandas as pd
 from catboost import CatBoostClassifier, Pool
 
+from dotenv import load_dotenv
+load_dotenv()
+
+
 CATEGORICAL_FEATURES = ["loan_intent", "loan_grade", "cb_person_default_on_file"]
 
 
-print(f"Текущая директория: {os.getcwd()}")
+# print(f"Текущая директория: {os.getcwd()}")
 
 lr_model = load('apps/ml/models/linear_regression.joblib') 
 rf_model = load('apps/ml/models/random_forest.joblib') 
@@ -38,11 +41,9 @@ def preprocessing(data):
 
 @app_celery.task
 def lr_predict(data):
-
     data = pd.DataFrame(data)
     data = preprocessing(data)
     prob = lr_model.predict_proba(data)[:, 1][0]
-
     return prob
 
 

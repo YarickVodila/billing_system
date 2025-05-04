@@ -1,16 +1,16 @@
-from apps.configs.config import Config
 from apps.configs.base_schema import UserCreate, UserJWT, DataForPredict, UserLogin
 from apps.database.db_helper import session
 from apps.database.db_schema import User, UserTransaction, UserPrediction, Models, TaskStatus
 from apps.broker.tasks import lr_predict, rf_predict, catboost_predict, app_celery
 from apps.database.create_db import create_database
 
-from celery.result import AsyncResult
-
 import os
 from typing import Literal
-
 import datetime
+import logging
+import asyncio
+
+from celery.result import AsyncResult
 
 from fastapi import FastAPI, Depends, HTTPException, BackgroundTasks
 from fastapi.security import  HTTPBearer
@@ -24,10 +24,14 @@ import uvicorn
 import bcrypt
 import pandas as pd
 
-import asyncio
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
+load_dotenv()
+
 bcrypt.__about__ = bcrypt
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 async def monitor_task():
@@ -60,12 +64,15 @@ async def monitor_task():
 
                     db_user.balance = db_user.balance - db_transaction.amount
                     db_transaction.balance = db_user.balance
+                    db_transaction.timestamp = time_now
 
 
             session.commit()
             
         except Exception as e:
-            print(f"Error monitoring table: {e}")
+            logger.info(f"Error monitoring table: {e}")
+            # print(f"Error monitoring table: {e}")
+
         
         await asyncio.sleep(10)  # Ждем 10 секунд
 
@@ -95,12 +102,11 @@ async def lifespan(app: FastAPI):
         await monitor_task
     except asyncio.CancelledError:
         pass
-    print("Monitoring task stopped gracefully")
+    # print(logger.info("Monitoring task stopped gracefully"))
+    logger.info("Monitoring task stopped gracefully")
 
 
 app = FastAPI(lifespan=lifespan)
-
-
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -114,9 +120,9 @@ def create_token(username: str):
     token_payload = user.model_dump(exclude_unset=True)
     
     # Время истечения токена
-    token_payload.update({"exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=Config.ACCESS_TOKEN_EXPIRE_MINUTES)})
+    token_payload.update({"exp": datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES")))})
 
-    token = jwt.encode(token_payload, Config.SECRET_KEY)
+    token = jwt.encode(token_payload, os.getenv("SECRET_KEY"))
     return token
 
 
@@ -132,9 +138,11 @@ def login(user: UserLogin):
     ).first()
 
     if db_user == None:
+        logger.info(f"Пользователя {username} нет. Зарегистрируйся")
         raise HTTPException(status_code=401, detail="Пользователя нет. Зарегистрируйся")
     
     if not pwd_context.verify(password, db_user.password):
+        logger.info(f"Пароль для пользователя {username} неверный")
         raise HTTPException(status_code=401, detail="Пароль неверный")
     
     db_user.authtime = datetime.datetime.now()
@@ -150,7 +158,7 @@ def login(user: UserLogin):
 def get_current_user(token: str = Depends(bearer)):
     try:
         # Проверяем JWT токен
-        payload = jwt.decode(token.credentials, Config.SECRET_KEY)
+        payload = jwt.decode(token.credentials, os.getenv("SECRET_KEY"))
         username = payload.get("username")
 
         # Получаем пользователя из БД
@@ -184,7 +192,7 @@ def model_predict(model_id: Literal["1", "2", "3"], data: DataForPredict, user: 
     
     db_user = session.query(User).filter(User.username == user["username"]).first()
     
-    print(f'Data: {dict(data).items()}')
+    logger.info(f'Data for predict: {dict(data).items()}')
 
     # Получаем данный от пользователя
     # data_x = pd.DataFrame({k:[v] for k, v in dict(data).items()})
@@ -265,6 +273,8 @@ def balance_replenish(amount:int, user: dict = Depends(get_current_user)):
     
     db_user = session.query(User).filter(User.username == user["username"]).first()
     db_user.balance = db_user.balance + amount
+
+    logger.info(f"Баланс для пользователя {db_user.username} пополнен на {amount}")
     
     time_now = datetime.datetime.now()
 
