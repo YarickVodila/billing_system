@@ -53,7 +53,7 @@ def create_database(path):
         model_id = Column(Integer)
 
         result = Column(Float) # Результат прогноза
-        person_age = Column(Integer)
+        person_age = Column(Integer) # возраст кандидата.
         person_income = Column(Integer)
         person_emp_length = Column(Float)
         loan_intent = Column(String)

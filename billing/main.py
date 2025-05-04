@@ -30,8 +30,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 bcrypt.__about__ = bcrypt
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    filename='logs/app.log'
+)
+
 logger = logging.getLogger(__name__)
+
 
 
 async def monitor_task():
@@ -149,6 +155,7 @@ def login(user: UserLogin):
     session.commit()
 
     token = create_token(username)
+    logger.info(f"Пользователь {username} успешно авторизовался")
     return {"access_token": token}
 
 
@@ -312,6 +319,8 @@ def get_statistic(user: dict = Depends(get_current_user)):
         UserPrediction.status == True
     ).all()
 
+    logger.info(f"Пользователь: {user.username} запросил свою статистику по своим прогнозам")
+
     data = [
         {column.name: getattr(item, column.name) for column in item.__table__.columns if column.name not in ["id", "status", "user_id", "task_id"]} for item in user_statistic
     ]
@@ -327,6 +336,9 @@ def get_history_transaction(type_trans: Literal["пополнение", "пок�
         UserTransaction.user_id == user.id,
         UserTransaction.type == type_trans
     ).all()
+
+    logger.info(f"Пользователь: {user.username} запросил свою статистику по своим транзакциям")
+
 
     data = [
         {column.name: getattr(item, column.name) for column in item.__table__.columns if column.name not in ["id", "user_id"]} for item in user_statistic
@@ -362,6 +374,8 @@ async def register_user(user_field: UserCreate):
 
     session.add(db_user)
     session.commit()
+
+    logger.info(f"Пользователь: {user_field.username} зарегистрировался")
 
     return {"message": f"User: `{user_field.username}` created successfully"}
 
